@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hungry?</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #1a001f;
+    color: white;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background-color: #2d0033;
+    padding: 1rem;
+    text-align: center;
+    font-size: 1.5rem;
+  }
+  header a {
+    color: #ff80bf;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  main {
+    max-width: 800px;
+    margin: auto;
+    padding: 1rem;
+  }
+  input {
+    width: 100%;
+    padding: 0.7rem;
+    margin-bottom: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+  }
+  .suggestions {
+    background: #2d0033;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+  .suggestion {
+    padding: 0.5rem;
+    cursor: pointer;
+  }
+  .suggestion:hover {
+    background: #40004d;
+  }
+  .basket {
+    background: #330033;
+    padding: 0.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+  .ingredient {
+    display: inline-block;
+    background: #ff4da6;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.2rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button {
+    background: #ff4da6;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 0.5rem 0;
+  }
+  button:hover {
+    background: #ff80bf;
+  }
+  .recipe-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .recipe {
+    background: #2d0033;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    text-align: center;
+  }
+  .recipe img {
+    width: 100%;
+    height: auto;
+  }
+  .recipe h3 {
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+  .instructions-view {
+    display: none;
+    text-align: center;
+  }
+  .instructions-view h2 {
+    margin-bottom: 1rem;
+  }
+  .instructions-view img {
+    width: 100%;
+    max-width: 400px;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+  }
+  .step {
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+    background: #330033;
+    padding: 1rem;
+    border-radius: 8px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<header><a id="homeLink">🍴 Hungry?</a></header>
+<main>
+  <!-- Search View -->
+  <div id="searchView">
+    <input type="text" id="ingredientSearch" placeholder="Search ingredient...">
+    <div class="suggestions" id="suggestions"></div>
+
+    <div class="basket" id="basket">
+      <strong>Basket:</strong>
+    </div>
+    <button id="findRecipes">Find Recipes</button>
+
+    <div class="recipe-list" id="recipeList"></div>
+  </div>
+
+  <!-- Instructions View -->
+  <div class="instructions-view" id="instructionsView">
+    <h2 id="mealTitle"></h2>
+    <img id="mealImg" alt="">
+    <div class="step" id="stepDisplay">Loading...</div>
+    <div>
+      <button id="prevBtn">Previous</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+</main>
+
+<script>
+let allIngredients = [];
+let basket = [];
+
+// Navigation back to home
+document.getElementById("homeLink").addEventListener("click", () => {
+  document.getElementById("instructionsView").style.display = "none";
+  document.getElementById("searchView").style.display = "block";
+});
+
+// Fetch all ingredients
+async function fetchIngredients() {
+  const res = await fetch("https://www.themealdb.com/api/json/v1/1/list.php?i=list");
+  const data = await res.json();
+  allIngredients = data.meals.map(m => m.strIngredient);
+}
+fetchIngredients();
+
+// Autocomplete
+document.getElementById("ingredientSearch").addEventListener("input", function() {
+  const query = this.value.toLowerCase();
+  const suggestions = allIngredients
+    .filter(ing => ing.toLowerCase().includes(query))
+    .slice(0, 10);
+  displaySuggestions(suggestions);
+});
+
+function displaySuggestions(items) {
+  const container = document.getElementById("suggestions");
+  container.innerHTML = "";
+  items.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "suggestion";
+    div.textContent = item;
+    div.onclick = () => addToBasket(item);
+    container.appendChild(div);
+  });
+}
+
+function addToBasket(item) {
+  if (!basket.includes(item)) {
+    basket.push(item);
+    updateBasket();
+  }
+}
+
+function updateBasket() {
+  const basketDiv = document.getElementById("basket");
+  basketDiv.innerHTML = "<strong>Basket:</strong> ";
+  basket.forEach(ing => {
+    const span = document.createElement("span");
+    span.className = "ingredient";
+    
+    // Ingredient text
+    const text = document.createElement("span");
+    text.textContent = ing;
+
+    // Small cross button
+    const removeBtn = document.createElement("span");
+    removeBtn.textContent = " ×";
+    removeBtn.style.marginLeft = "5px";
+    removeBtn.style.cursor = "pointer";
+    removeBtn.style.fontWeight = "bold";
+    removeBtn.onclick = (e) => {
+      e.stopPropagation(); // prevent triggering ingredient click
+      removeFromBasket(ing);
+    };
+
+    span.appendChild(text);
+    span.appendChild(removeBtn);
+    
+    basketDiv.appendChild(span);
+  });
+}
+
+
+function removeFromBasket(ing) {
+  basket = basket.filter(i => i !== ing);
+  updateBasket();
+}
+
+// Find recipes
+document.getElementById("findRecipes").addEventListener("click", async () => {
+  if (basket.length === 0) return alert("Add some ingredients first!");
+  let recipeMap = {};
+  for (let ing of basket) {
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ing)}`);
+    const data = await res.json();
+    if (!data.meals) continue;
+    data.meals.forEach(meal => {
+      if (!recipeMap[meal.idMeal]) {
+        recipeMap[meal.idMeal] = { count: 0, ...meal };
+      }
+      recipeMap[meal.idMeal].count++;
+    });
+  }
+  const recipes = Object.values(recipeMap)
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+  displayRecipes(recipes);
+});
+
+function displayRecipes(recipes) {
+  const list = document.getElementById("recipeList");
+  list.innerHTML = "";
+  recipes.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "recipe";
+    div.innerHTML = `<img src="${r.strMealThumb}" alt="${r.strMeal}">
+                     <h3>${r.strMeal}</h3>`;
+    div.onclick = () => showInstructions(r.idMeal);
+    list.appendChild(div);
+  });
+}
+
+// Instructions handling
+let steps = [];
+let currentStep = 0;
+
+async function showInstructions(id) {
+  const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
+  const data = await res.json();
+  const meal = data.meals[0];
+  document.getElementById("mealTitle").textContent = meal.strMeal;
+  document.getElementById("mealImg").src = meal.strMealThumb;
+
+  steps = meal.strInstructions
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  currentStep = 0;
+  displayStep();
+
+  document.getElementById("searchView").style.display = "none";
+  document.getElementById("instructionsView").style.display = "block";
+}
+
+function displayStep() {
+  document.getElementById("stepDisplay").textContent = steps[currentStep];
+}
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (currentStep > 0) {
+    currentStep--;
+    displayStep();
+  }
+});
+
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    displayStep();
+  }
+});
+</script>
+</body>
+</html>
